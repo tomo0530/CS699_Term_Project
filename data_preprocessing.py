@@ -3,7 +3,7 @@ import pandas as pd
 from typing import Optional, Tuple
 
 from sklearn.model_selection import KFold
-from xfeat import LabelEncoder, TargetEncoder
+from xfeat import CountEncoder, TargetEncoder
 
 
 class Data_preprocessing(object):
@@ -143,9 +143,9 @@ class Data_preprocessing(object):
         categorical_columns = [x for x in df.columns if
                                df[x].dtypes == 'object']
 
-        # label encoding
-        label_encoder = LabelEncoder(input_cols=categorical_columns)
-        df = label_encoder.fit_transform(df)
+        # count encoding
+        count_encoder = CountEncoder(input_cols=categorical_columns)
+        df = count_encoder.fit_transform(df)
 
         # target encoding
         fold = KFold(n_splits=5, shuffle=True, random_state=123)
