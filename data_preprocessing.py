@@ -7,8 +7,8 @@ from xfeat import CountEncoder, TargetEncoder
 
 
 class Data_preprocessing(object):
-    filename_pitching = 'pitching_info.csv'
-    filename_game = 'game_info.csv'
+    filename_pitching = 'https://raw.githubusercontent.com/tomo0530/CS699_Term_Project/master/pitching_info.csv'
+    filename_game = 'https://raw.githubusercontent.com/tomo0530/CS699_Term_Project/master/game_info.csv'
     filename_preprocessed = 'baseball_info.csv'
 
     def __init__(self):
