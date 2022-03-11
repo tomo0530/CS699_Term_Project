@@ -118,6 +118,10 @@ class Data_preprocessing(object):
         df['topTeam'] = df['topTeam'].replace(team_dict)
         df['bottomTeam'] = df['bottomTeam'].replace(team_dict)
 
+        # label encoding of place
+        le = LabelEncoder()
+        df['place'] = le.fit_transform(df['place'].values)
+
         # extract time features from startDayTime
         df['startDayTime'] = pd.to_datetime(df['startDayTime'])
         df['minute'] = [i.minute for i in df['startDayTime']]
