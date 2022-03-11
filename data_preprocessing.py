@@ -1,8 +1,10 @@
 import re
+import numpy as np
 import pandas as pd
 from typing import Optional, Tuple
 
 from sklearn.model_selection import KFold
+from sklearn.preprocessing import LabelEncoder
 from xfeat import CountEncoder, TargetEncoder
 
 
@@ -13,7 +15,8 @@ class Data_preprocessing(object):
 
     def __init__(self):
         self.df_pitching, self.df_game = self._read_data_as_df()
-        self.df_preprocessed = self.finalize_preprocessing()
+        self.df_preprocessed = self.label_pitcher_and_batter_order().drop(
+            'gameID', axis=1)
 
     def _read_data_as_df(self) -> Optional[Tuple[pd.DataFrame, pd.DataFrame]]:
         try:
@@ -34,10 +37,13 @@ class Data_preprocessing(object):
         df['pitcherHand'] = df['pitcherHand'].interpolate('ffill')
         df['batterHand'] = df['batterHand'].interpolate('ffill')
 
+        # encode pitcher and batter hand
+        df['pitcherHand'] = np.where(df['pitcherHand'] == 'R', 0, 1)
+        df['batterHand'] = np.where(df['batterHand'] == 'R', 0, 1)
+
         # convert type of ball speed and fill average in N/A
-        df['speed'] = df['speed'].str.replace('km/h', '').replace('-',
-                                                                  '0').astype(
-            int)
+        df['speed'] = df['speed'].str.replace(
+            'km/h', '').replace('-', '0').astype(float)
         sp_ave = int(df.loc[df['speed'] != 0, 'speed'].mean())
         df.loc[df['speed'] == 0, 'speed'] = sp_ave
 
@@ -63,6 +69,35 @@ class Data_preprocessing(object):
         df = df.merge(pitcher_df, on='batter', how='left')
         df['batter_isPitcher'] = df['batter_isPitcher'].fillna(0)
         df['batter_isPitcher'] = df['batter_isPitcher'].astype('int')
+
+        # devide ballPositionLabel into ballWidthLabel and ballHeightLabel
+        col = 'ballPositionLabel'
+        conditions = [df[col].isin(['外角高め', '外角中心', '外角低め']),
+                      df[col].isin(['真ん中高め', 'ど真ん中', '真ん中低め']),
+                      df[col].isin(['内角高め', '内角中心', '内角低め']),
+                      df[col].isin(['高め', '中心', '低め'])]
+        choices = [3, 2, 1, 0]
+        df['ballWidthLabel'] = np.select(conditions, choices)
+
+        conditions = [df[col].isin(['外角高め', '真ん中高め', '内角高め', '高め']),
+                      df[col].isin(['外角中心', 'ど真ん中', '内角中心', '中心']),
+                      df[col].isin(['外角低め', '真ん中低め', '内角低め', '低め'])]
+        choices = [2, 1, 0]
+        df['ballHeightLabel'] = np.select(conditions, choices)
+        df = df.drop('ballPositionLabel', axis=1)
+
+        # devide pitchType into three cotegories
+        col = 'pitchType'
+        conditions = [df[col].isin(['チェンジアップ', 'フォーク']),
+                      df[col].isin(['スライダー', 'カーブ', 'シンカー']),
+                      df[col].isin(['ストレート', 'カットファストボール', 'シュート'])]
+        choices = [2, 1, 0]
+        df[col] = np.select(conditions, choices)
+
+        class_le = LabelEncoder()
+        class_le.classes_ = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+                             'K']
+        df['ballY'] = class_le.transform(df['ballY'])
 
         # reclassify whether hit or not
         hit = [4, 5, 6, 7]
@@ -102,9 +137,10 @@ class Data_preprocessing(object):
         df = df_pitching.merge(df_game, on=['gameID'], how='left')
         return df
 
-    def label_pitcher_and_batter_team(self) -> pd.DataFrame:
+    def label_pitcher_and_batter_order(self) -> pd.DataFrame:
         df = self.merge_pitching_and_game_data()
 
+        # label team for pitcher and batter
         df['pitcher_team'] = df['topTeam']
         df['pitcher_team'] = df['pitcher_team'].where(df['inning_tb'] == 1,
                                                       df['bottomTeam'])
@@ -113,11 +149,7 @@ class Data_preprocessing(object):
         df['batter_team'] = df['batter_team'].where(df['inning_tb'] == 0,
                                                     df['bottomTeam'])
 
-        return df
-
-    def label_pitcher_and_batter_order(self) -> pd.DataFrame:
-        df = self.label_pitcher_and_batter_team()
-
+        # label order for pitcher and batter
         df_pitcher = df.groupby(['gameID', 'pitcher_team'])[
             'pitcher'].unique().explode().reset_index()
         df_pitcher['pitcher_order'] = df_pitcher.groupby(
@@ -128,33 +160,12 @@ class Data_preprocessing(object):
         df_batter['batter_order'] = df_batter.groupby(
             ['gameID', 'batter_team']).cumcount() + 1
 
+        # merge these order into original data and drop their team
         df = df.merge(df_pitcher, on=['gameID', 'pitcher_team', 'pitcher'],
                       how='left')
         df = df.merge(df_batter, on=['gameID', 'batter_team', 'batter'],
                       how='left')
-
-        return df
-
-    def finalize_preprocessing(self) -> pd.DataFrame:
-        df = self.label_pitcher_and_batter_order()
-        df = df.drop('gameID', axis=1)
-
-        # list categorical columns
-        categorical_columns = [x for x in df.columns if
-                               df[x].dtypes == 'object']
-
-        # count encoding
-        count_encoder = CountEncoder(input_cols=categorical_columns)
-        df = count_encoder.fit_transform(df)
-
-        # target encoding
-        fold = KFold(n_splits=5, shuffle=True, random_state=123)
-        target_encoder = TargetEncoder(input_cols=categorical_columns,
-                                       target_col='y', fold=fold)
-        df = target_encoder.fit_transform(df)
-
-        # drop original object columns
-        df = df.drop(categorical_columns, axis=1)
+        df = df.drop(['pitcher_team', 'batter_team'], axis=1)
 
         return df
 
