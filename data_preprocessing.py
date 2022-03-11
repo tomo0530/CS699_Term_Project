@@ -86,13 +86,13 @@ class Data_preprocessing(object):
         df['ballHeightLabel'] = np.select(conditions, choices)
         df = df.drop('ballPositionLabel', axis=1)
 
-        # devide pitchType into three cotegories
+        # divide pitchType into three categories
         col = 'pitchType'
         conditions = [df[col].isin(['チェンジアップ', 'フォーク']),
                       df[col].isin(['スライダー', 'カーブ', 'シンカー']),
                       df[col].isin(['ストレート', 'カットファストボール', 'シュート'])]
         choices = [2, 1, 0]
-        df[col] = np.select(conditions, choices)
+        df['pitch_category'] = np.select(conditions, choices)
 
         class_le = LabelEncoder()
         class_le.classes_ = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
