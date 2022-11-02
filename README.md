@@ -1,0 +1,3 @@
+# CS699 Term Project
+
+Our data mining goal is to predict the pitching result (value of y) based on the data on the situation at the time of pitching in the test dataset. The class attribute is y: Pitching result (0 ~ 7). Based on the game situation (score, base situation, pitcher - batter's match record, etc.), we can determine which type and course of the pitch have the highest probability of producing positive results for pitchers. Initially, it had eight different values ranging from 0 to 7, but to simplify classification, we converted it to binary values of 1 and 0, meaning hit or not. In this case, we shall use Mattews correlation coefficient (MCC) to evaluate the classifier because of the bias in the distribution between 0 and 1.
